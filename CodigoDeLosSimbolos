@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>El Código de los Símbolos - Desafío de Fracciones</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Quicksand:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Quicksand', sans-serif;
+            background-color: #f0f9ff;
+            touch-action: manipulation;
+        }
+        h1, h2, h3 {
+            font-family: 'Fredoka One', cursive;
+        }
+        .symbol-card {
+            transition: transform 0.2s, background-color 0.2s;
+            cursor: pointer;
+        }
+        .symbol-card:active {
+            transform: scale(0.9);
+        }
+        .drop-zone {
+            min-height: 120px;
+            border: 3px dashed #cbd5e1;
+            transition: all 0.3s;
+        }
+        .drop-zone.active {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+        .correct-bg { background-color: #dcfce7; border-color: #22c55e; }
+        .wrong-bg { background-color: #fee2e2; border-color: #ef4444; }
+        
+        .bounce { animation: bounce 0.5s infinite alternate; }
+        @keyframes bounce {
+            from { transform: translateY(0); }
+            to { transform: translateY(-5px); }
+        }
+
+        .confetti-piece {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #ffd700;
+            top: -20px;
+            opacity: 0;
+            animation: fall 3s infinite;
+        }
+        @keyframes fall {
+            0% { top: -20px; opacity: 1; transform: translateX(0) rotate(0deg); }
+            100% { top: 100vh; opacity: 0; transform: translateX(100px) rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 flex flex-col items-center min-h-screen">
+
+    <!-- Header -->
+    <header class="text-center mb-6">
+        <h1 class="text-4xl text-blue-600 mb-2">El Código de los Símbolos 🧩</h1>
+        <p class="text-gray-600 font-semibold">¿Podrás descubrir el valor oculto de cada figura?</p>
+    </header>
+
+    <main id="game-container" class="w-full max-w-4xl grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <!-- Panel Lateral Izquierdo: Pistas -->
+        <section class="bg-white p-6 rounded-3xl shadow-lg border-t-4 border-yellow-400">
+            <h3 class="text-xl text-yellow-600 mb-4 flex items-center">
+                <span class="mr-2">💡</span> Libro de Pistas
+            </h3>
+            <p class="text-xs text-gray-500 mb-4 italic leading-tight">Usa estas pistas para pensar, ¡pero no puedes usarlas como respuestas!</p>
+            <div class="space-y-4 text-lg">
+                <div class="p-3 bg-yellow-50 rounded-xl border border-yellow-200">
+                    <p class="font-bold text-center text-sm uppercase text-yellow-700">Pista A (Prohibida):</p>
+                    <div class="flex justify-center items-center gap-2 mt-2">
+                        <span class="text-2xl">△</span> + <span class="text-2xl">△</span> = <span class="font-bold text-blue-600 text-2xl">1</span>
+                    </div>
+                </div>
+                <div class="p-3 bg-yellow-50 rounded-xl border border-yellow-200">
+                    <p class="font-bold text-center text-sm uppercase text-yellow-700">Pista B (Prohibida):</p>
+                    <div class="flex justify-center items-center gap-2 mt-2 text-blue-500">
+                        <span class="text-2xl">◯</span> + <span class="text-2xl">◯</span> + <span class="text-2xl text-black">△</span> = <span class="font-bold text-blue-600 text-2xl">1</span>
+                    </div>
+                </div>
+                <div class="mt-4 text-sm text-gray-500 italic">
+                    ¿Qué pasa si usas los cuadrados <span class="text-red-500 font-bold">□</span>? Prueba nuevas mezclas.
+                </div>
+            </div>
+        </section>
+
+        <!-- Panel Central: Área de Juego -->
+        <section class="md:col-span-2 space-y-6">
+            
+            <!-- Meta y Contador -->
+            <div class="bg-blue-600 text-white p-4 rounded-2xl flex justify-between items-center shadow-md">
+                <div>
+                    <p class="text-sm uppercase tracking-wider opacity-80">Objetivo</p>
+                    <p class="text-2xl font-bold">Sumar exactamente 1</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-sm uppercase tracking-wider opacity-80">Combinaciones</p>
+                    <p id="combo-counter" class="text-2xl font-bold">0 / 3</p>
+                </div>
+            </div>
+
+            <!-- Zona de Construcción -->
+            <div class="bg-white p-6 rounded-3xl shadow-xl relative">
+                <div id="feedback-msg" class="absolute -top-4 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-full text-sm font-bold hidden text-center min-w-[250px]">
+                    ¡Casi lo tienes!
+                </div>
+                
+                <h3 class="text-center text-gray-400 mb-4 uppercase text-xs font-bold tracking-widest">Tu Combinación</h3>
+                <div id="drop-zone" class="drop-zone rounded-2xl flex flex-wrap justify-center items-center gap-4 p-4">
+                    <!-- Símbolos agregados aparecerán aquí -->
+                    <p id="placeholder-text" class="text-gray-300">Haz clic en las figuras de abajo para sumarlas</p>
+                </div>
+
+                <div class="flex gap-4 mt-6">
+                    <button onclick="checkCombination()" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-2xl shadow-lg transform transition active:scale-95 text-xl">
+                        VERIFICAR ✅
+                    </button>
+                    <button onclick="clearZone()" class="bg-red-100 hover:bg-red-200 text-red-600 font-bold px-6 rounded-2xl transition">
+                        Limpiar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Selector de Símbolos -->
+            <div class="grid grid-cols-3 gap-4">
+                <div onclick="addSymbol('triangle')" class="symbol-card bg-white p-6 rounded-2xl shadow-md border-b-4 border-gray-200 flex flex-col items-center hover:border-blue-400">
+                    <span class="text-4xl mb-2">△</span>
+                    <span class="text-xs font-bold text-gray-400 uppercase">Triángulo</span>
+                </div>
+                <div onclick="addSymbol('circle')" class="symbol-card bg-white p-6 rounded-2xl shadow-md border-b-4 border-gray-200 flex flex-col items-center hover:border-blue-400">
+                    <span class="text-4xl mb-2 text-blue-500">◯</span>
+                    <span class="text-xs font-bold text-gray-400 uppercase">Círculo</span>
+                </div>
+                <div onclick="addSymbol('square')" class="symbol-card bg-white p-6 rounded-2xl shadow-md border-b-4 border-gray-200 flex flex-col items-center hover:border-blue-400">
+                    <span class="text-4xl mb-2 text-red-500">□</span>
+                    <span class="text-xs font-bold text-gray-400 uppercase">Cuadrado</span>
+                </div>
+            </div>
+
+            <!-- Sugerencia Colaborativa -->
+            <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 flex items-center gap-4">
+                <div class="bg-indigo-500 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold">?</div>
+                <p class="text-indigo-800 text-sm italic">
+                    <strong>Pensamiento crítico:</strong> No puedes usar las pistas. ¿Cómo podrías usar el cuadrado para llegar a 1?
+                </p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal Final: Decodificación -->
+    <div id="final-modal" class="fixed inset-0 bg-blue-900/90 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white w-full max-w-md p-8 rounded-3xl text-center shadow-2xl">
+            <h2 class="text-3xl text-blue-600 mb-4">¡Código Descifrado! 🔓</h2>
+            <p class="text-gray-600 mb-6 font-semibold">Has encontrado 3 combinaciones originales. Ahora, demuestra que sabes el valor de cada símbolo:</p>
+            
+            <div class="space-y-6 mb-8">
+                <div class="flex items-center justify-between bg-gray-50 p-4 rounded-2xl">
+                    <span class="text-3xl font-bold">△ =</span>
+                    <select id="ans-triangle" class="bg-white border-2 border-blue-200 rounded-xl px-4 py-2 text-xl outline-none focus:border-blue-500">
+                        <option value="">?</option>
+                        <option value="1/2">1/2</option>
+                        <option value="1/4">1/4</option>
+                        <option value="1/8">1/8</option>
+                    </select>
+                </div>
+                <div class="flex items-center justify-between bg-gray-50 p-4 rounded-2xl">
+                    <span class="text-3xl font-bold text-blue-500">◯ =</span>
+                    <select id="ans-circle" class="bg-white border-2 border-blue-200 rounded-xl px-4 py-2 text-xl outline-none focus:border-blue-500">
+                        <option value="">?</option>
+                        <option value="1/2">1/2</option>
+                        <option value="1/4">1/4</option>
+                        <option value="1/8">1/8</option>
+                    </select>
+                </div>
+                <div class="flex items-center justify-between bg-gray-50 p-4 rounded-2xl">
+                    <span class="text-3xl font-bold text-red-500">□ =</span>
+                    <select id="ans-square" class="bg-white border-2 border-blue-200 rounded-xl px-4 py-2 text-xl outline-none focus:border-blue-500">
+                        <option value="">?</option>
+                        <option value="1/2">1/2</option>
+                        <option value="1/4">1/4</option>
+                        <option value="1/8">1/8</option>
+                    </select>
+                </div>
+            </div>
+
+            <button onclick="validateFinal()" class="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl text-xl shadow-lg hover:bg-blue-700 active:scale-95 transition">
+                COMPROBAR VALORES
+            </button>
+            <p id="final-error" class="text-red-500 mt-4 font-bold hidden">Algún valor no es correcto. ¡Sigue pensando!</p>
+        </div>
+    </div>
+
+    <!-- Pantalla de Victoria -->
+    <div id="victory-screen" class="fixed inset-0 bg-green-500 flex flex-col items-center justify-center text-white p-8 hidden z-[60]">
+        <h1 class="text-6xl mb-4 bounce">🏆 ¡MAGNÍFICO! 🏆</h1>
+        <p class="text-2xl mb-8 text-center max-w-lg">Has dominado el código de las fracciones simbólicas creando tus propias fórmulas.</p>
+        <button onclick="location.reload()" class="bg-white text-green-600 font-bold px-12 py-4 rounded-full text-2xl shadow-2xl hover:bg-gray-100 transition">
+            Jugar de nuevo
+        </button>
+        <div id="confetti-container"></div>
+    </div>
+
+    <script>
+        // Valores lógicos (Ocultos para el jugador)
+        const VALUES = {
+            triangle: 0.5,   // 1/2
+            circle: 0.25,    // 1/4
+            square: 0.125    // 1/8
+        };
+
+        const SYMBOLS = {
+            triangle: { char: '△', color: 'text-black' },
+            circle: { char: '◯', color: 'text-blue-500' },
+            square: { char: '□', color: 'text-red-500' }
+        };
+
+        // Combinaciones de pistas (prohibidas)
+        const FORBIDDEN_COMBOS = [
+            "triangle|triangle",
+            "circle|circle|triangle"
+        ];
+
+        let currentCombination = [];
+        let correctCombosCount = 0;
+        let foundCombos = new Set(); 
+
+        const dropZone = document.getElementById('drop-zone');
+        const placeholderText = document.getElementById('placeholder-text');
+        const comboCounterText = document.getElementById('combo-counter');
+        const feedbackMsg = document.getElementById('feedback-msg');
+
+        function addSymbol(type) {
+            currentCombination.push(type);
+            renderCombination();
+        }
+
+        function renderCombination() {
+            if (currentCombination.length > 0) {
+                placeholderText.classList.add('hidden');
+            } else {
+                placeholderText.classList.remove('hidden');
+            }
+
+            dropZone.innerHTML = '';
+            if (currentCombination.length === 0) {
+                dropZone.appendChild(placeholderText);
+            }
+
+            currentCombination.forEach((type, index) => {
+                const span = document.createElement('span');
+                span.className = `text-4xl ${SYMBOLS[type].color} cursor-pointer hover:opacity-50 select-none`;
+                span.innerText = SYMBOLS[type].char;
+                span.onclick = () => removeSymbol(index);
+                dropZone.appendChild(span);
+            });
+            resetStyles();
+        }
+
+        function removeSymbol(index) {
+            currentCombination.splice(index, 1);
+            renderCombination();
+        }
+
+        function clearZone() {
+            currentCombination = [];
+            renderCombination();
+            resetStyles();
+        }
+
+        function resetStyles() {
+            dropZone.classList.remove('correct-bg', 'wrong-bg');
+            feedbackMsg.classList.add('hidden');
+        }
+
+        function showFeedback(msg, type = 'info') {
+            feedbackMsg.innerText = msg;
+            feedbackMsg.classList.remove('hidden');
+            
+            if (type === 'success') {
+                dropZone.classList.add('correct-bg');
+                dropZone.classList.remove('wrong-bg');
+            } else {
+                dropZone.classList.add('wrong-bg');
+                dropZone.classList.remove('correct-bg');
+            }
+        }
+
+        function checkCombination() {
+            if (currentCombination.length === 0) return;
+
+            // Crear una llave de la combinación actual para comparar (ordenada alfabéticamente)
+            const comboKey = [...currentCombination].sort().join('|');
+
+            // 1. Verificar si es una pista prohibida
+            if (FORBIDDEN_COMBOS.includes(comboKey)) {
+                showFeedback("¡Esa es una de las pistas! Busca una combinación nueva.", 'error');
+                return;
+            }
+
+            // 2. Calcular suma
+            const sum = currentCombination.reduce((acc, type) => acc + VALUES[type], 0);
+
+            // 3. Evaluar resultado
+            if (Math.abs(sum - 1) < 0.001) {
+                if (foundCombos.has(comboKey)) {
+                    showFeedback("¡Esta combinación ya la habías encontrado! Intenta una distinta.", 'error');
+                } else {
+                    foundCombos.add(comboKey);
+                    correctCombosCount++;
+                    comboCounterText.innerText = `${correctCombosCount} / 3`;
+                    showFeedback("¡EXCELENTE! Combinación original encontrada.", 'success');
+                    
+                    if (correctCombosCount >= 3) {
+                        setTimeout(() => {
+                            document.getElementById('final-modal').classList.remove('hidden');
+                        }, 1000);
+                    } else {
+                        setTimeout(clearZone, 1800);
+                    }
+                }
+            } else if (sum < 1) {
+                showFeedback("Todavía te falta para llegar a 1. ¡Prueba añadir algo!", 'error');
+            } else {
+                let msg = "Te pasaste de 1. ¡Prueba quitar algo!";
+                if (currentCombination.length > 2) {
+                    msg = "¡Casi! Intenta cambiar una figura grande por una más pequeña.";
+                }
+                showFeedback(msg, 'error');
+            }
+        }
+
+        function validateFinal() {
+            const t = document.getElementById('ans-triangle').value;
+            const c = document.getElementById('ans-circle').value;
+            const s = document.getElementById('ans-square').value;
+
+            if (t === '1/2' && c === '1/4' && s === '1/8') {
+                showVictory();
+            } else {
+                const error = document.getElementById('final-error');
+                error.classList.remove('hidden');
+                setTimeout(() => error.classList.add('hidden'), 3000);
+            }
+        }
+
+        function showVictory() {
+            document.getElementById('final-modal').classList.add('hidden');
+            const victory = document.getElementById('victory-screen');
+            victory.classList.remove('hidden');
+            
+            const container = document.getElementById('confetti-container');
+            for (let i = 0; i < 50; i++) {
+                const confeti = document.createElement('div');
+                confeti.className = 'confetti-piece';
+                confeti.style.left = Math.random() * 100 + 'vw';
+                confeti.style.animationDelay = Math.random() * 3 + 's';
+                confeti.style.backgroundColor = `hsl(${Math.random() * 360}, 70%, 50%)`;
+                container.appendChild(confeti);
+            }
+        }
+    </script>
+</body>
+</html>
